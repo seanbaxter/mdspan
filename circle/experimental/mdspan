@@ -129,6 +129,9 @@ struct extents {
   [[no_unique_address]] _storage_t<int..., Extents> m ...;
 };
 
+template <class... SizeTypes>
+extents(SizeTypes...) -> extents<make_dynamic_extent<SizeTypes>()...>;
+
 struct layout_left;
 struct layout_right;
 struct layout_stride;
@@ -749,7 +752,27 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
 }
 }
 
+// Kokkos mdspan macros to let the Kokkos tests work.
+
 #define _MDSPAN_INLINE_VARIABLE inline
 #define MDSPAN_INLINE_FUNCTION inline
 #define __MDSPAN_OP(mds,...) mds(__VA_ARGS__)
 #define _MDSPAN_HOST_DEVICE
+#define _MDSPAN_CPLUSPLUS __cplusplus
+
+#define MDSPAN_CXX_STD_14 201402L
+#define MDSPAN_CXX_STD_17 201703L
+#define MDSPAN_CXX_STD_20 202002L
+
+#define MDSPAN_HAS_CXX_14 1
+#define MDSPAN_HAS_CXX_17 1
+#define MDSPAN_HAS_CXX_20 1
+
+#define _MDSPAN_USE_CONCEPTS 1
+#define _MDSPAN_USE_FOLD_EXPRESSIONS 1
+#define _MDSPAN_USE_INLINE_VARIABLES 1
+#define _MDSPAN_USE_VARIABLE_TEMPLATES 1
+#define _MDSPAN_USE_INTEGER_SEQUENCE 1
+#define _MDSPAN_USE_RETURN_TYPE_DEDUCTION 1
+#define _MDSPAN_USE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
+#define _MDSPAN_USE_ALIAS_TEMPLATE_ARGUMENT_DEDUCTION 1

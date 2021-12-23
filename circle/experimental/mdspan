@@ -44,7 +44,7 @@ struct _storage_t {
 
 template<size_t Index>
 struct _storage_t<Index, dynamic_extent> {
-  constexpr _storage_t(size_t value = 1) noexcept : extent(value) { }
+  constexpr _storage_t(size_t value = 0) noexcept : extent(value) { }
   size_t extent;
 };
 
@@ -55,6 +55,9 @@ struct extents {
   static constexpr size_t rank() noexcept { return sizeof... Extents; }
   static constexpr size_t rank_dynamic() noexcept {
     return (0 + ... + (Extents == dynamic_extent));
+  }
+  static constexpr size_t static_extent(size_t n) noexcept {
+    return n == int... ...? Extents : 0;
   }
 
   // Set the runtime extents to 1.
@@ -605,7 +608,7 @@ public:
   template<SizeType... IndexTypes>
   requires(extents_type::rank() == sizeof...(IndexTypes))
   constexpr reference operator[](IndexTypes... indices) const noexcept {
-    return _accessor.access(_pointer, _mapping(size_type(indices)...));
+    return _accessor.access(_pointer, _mapping(indices...));
   }
 
   template<SizeType IndexType, size_t N>
@@ -617,13 +620,13 @@ public:
   template<SizeType... IndexTypes>
   requires(extents_type::rank() == sizeof...(IndexTypes))
   constexpr reference operator()(IndexTypes... indices) const noexcept {
-    return _accessor.access(_pointer, _mapping(size_type(indices)...));
+    return _accessor.access(_pointer, _mapping(indices...));
   }
 
   template<SizeType IndexType, size_t N>
   requires(N == extents_type::rank())
   constexpr reference operator()(const array<IndexType, N>& indices) const noexcept {
-    return _accessor.access(_pointer, _mapping(indices));
+    return _accessor.access(_pointer, _mapping(indices...));
   }
 
   constexpr accessor_type accessor() const { return _accessor; };
@@ -690,3 +693,5 @@ mdspan(const typename AccessorType::pointer, const MappingType&, const AccessorT
 
 #define _MDSPAN_INLINE_VARIABLE inline
 #define MDSPAN_INLINE_FUNCTION inline
+#define __MDSPAN_OP(mds,...) mds(__VA_ARGS__)
+#define _MDSPAN_HOST_DEVICE

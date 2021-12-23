@@ -595,13 +595,13 @@ public:
     typename ElementType2, typename Extents2, 
     typename Layout2, typename Accessor2
   > requires(
-    std::is_constructible_v<mapping_type, template Layout2::template mapping<Extents2> > &&
+    std::is_constructible_v<mapping_type, typename Layout2::template mapping<Extents2> > &&
     std::is_constructible_v<accessor_type, Accessor2> &&
     std::is_constructible_v<pointer, typename Accessor2::pointer> &&
     std::is_constructible_v<extents_type, Extents2>
   )
-  constexpr mdspan(mdspan<ElementType2, Extents2, Layout2, Accessor>& other) :
-    _pointer(other._pointer), _mapping(other.__mapping), 
+  constexpr mdspan(const mdspan<ElementType2, Extents2, Layout2, Accessor2>& other) :
+    _pointer(other._pointer), _mapping(other._mapping), 
     _accessor(other._accessor) { }
 
   // Indexing.

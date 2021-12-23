@@ -712,32 +712,48 @@ requires(
     ))
   )
 )
+
 constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
   SliceSpecs... slices) {
+ 
+  using tuple = std::tuple<size_t, size_t>;
+  constexpr size_t rank = src.rank();
+
+  // Define map_rank as an array<size_t,src.rank()> such that for all j in the
+  // range [0, src.rank()) map_rank[j] equals dynamic_extent if 
+  // is_convertible_v<Sj,size_t> is true, or else map_rank[j] equals the 
+  // number of Sk with k < j such that is_convertible_v<Sk,tuple<size_t,size_t>>
+  // || is_convertible_v<Sk,full_extent_t> is true.
+  constexpr std::array<size_t, rank> map_rank {
+    for i : rank =>
+      std::is_convertible_v<SliceSpecs...[i], size_t> ??
+        dynamic_extent :
+        (0 + ... + (
+          std::is_convertible_v<SliceSpecs...[:i], tuple> ||
+          std::is_convertible_v<SliceSpecs...[:i], full_extent_t>
+        ))
+  };
 
   // Let first and last be exposition-only variables of type 
   // array<size_t,src.rank()>. For r in the range [0, src.rank()), 
   // define the values of first[r] and last[r] as follows:
-  constexpr size_t rank = src.rank();
-  std::array<size_t, rank> first, last;
+  std::array<tuple, rank> first_last {
+    // if is_convertible_v<Sr,size_t>, then first[r] equals sr, and last[r] 
+    // equals first[r] + 1;
+    std::is_convertible_v<SliceSpecs, size_t> ??
+      tuple(slices, slices + 1) :
 
-  using tuple = std::tuple<size_t, size_t>;
+    // otherwise, if is_convertible_v<Sr,tuple<size_t,size_t>>, then first[r]
+    // equals get<0>(t), and last[r] equals get<1>(t), where t is the result of 
+    // converting sr to tuple<size_t,size_t>;
+    std::is_convertible_v<SliceSpecs, tuple> ??
+      (tuple)SliceSpecs :
 
-  // if is_convertible_v<Sr,size_t>, then first[r] equals sr, and last[r] 
-  // equals first[r] + 1;
+    // otherwise, if is_convertible_v<Sr,full_extent_t>, then first[r] equals
+    // 0, and last[r] equals src.extent(r).
+      tuple(0, src.extent(int...)) ...
+  };
 
-  std::is_convertible_v<SliceSpecs, size_t> ??
-    (first...[:] = slices, last...[:] = first...[:] + 1) :
-
-  // otherwise, if is_convertible_v<Sr,tuple<size_t,size_t>>, then first[r]
-  // equals get<0>(t), and last[r] equals get<1>(t), where t is the result of 
-  // converting sr to tuple<size_t,size_t>;
-  std::is_convertible_v<SliceSpecs, tuple> ??
-    std::tie(first...[:], last...[:]) = (tuple)SliceSpecs :
-
-  // otherwise, if is_convertible_v<Sr,full_extent_t>, then first[r] equals
-  // 0, and last[r] equals src.extent(r).
-    (first...[:] = 0, last...[:] = src.extent(int...)) ...;
 
 
 

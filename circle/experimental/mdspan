@@ -394,6 +394,12 @@ struct layout_stride {
       return (0 + ... + (indices * _strides[int...]));
     }
 
+    template<typename OtherMapping>
+    static constexpr std::array<size_t, Extents::rank()> 
+    fill_storage(const OtherMapping& other) noexcept {
+      return { other.stride(int...(Extents::rank()))... };
+    }
+
   public: 
     constexpr mapping() noexcept = default;
     constexpr mapping(mapping const&) noexcept = default;
@@ -409,18 +415,19 @@ struct layout_stride {
     template<typename OtherExtents>
     explicit(!std::is_convertible_v<OtherExtents, Extents>)
     constexpr mapping(const mapping<OtherExtents>& rhs) noexcept :
-      _extents(rhs.extents(), rhs._strides) { }
+      _extents(rhs.extents()), _strides(rhs._strides) { }
+
 
     template<typename OtherMapping>
     requires(
       std::is_constructible_v<Extents, typename OtherMapping::extents_type> &&
-      // typename OtherMapping::layout_type::template mapping<typename OtherMapping::extents_type> == OtherMapping,
+      typename OtherMapping::layout_type::template mapping<typename OtherMapping::extents_type> == OtherMapping,
       OtherMapping::is_always_unique() &&
       OtherMapping::is_always_strided()
     )
     explicit(!std::is_convertible_v<typename OtherMapping::extents_type, Extents>)
     constexpr mapping(const OtherMapping& other) noexcept :
-      _extents(other.extents(), other._strides) { }
+      _extents(other.extents()), _strides(fill_storage(other)) { }
 
     constexpr extents_type extents() const noexcept {
       return _extents;
@@ -687,6 +694,57 @@ template <class MappingType, class AccessorType>
 mdspan(const typename AccessorType::pointer, const MappingType&, const AccessorType&)
   -> mdspan<typename AccessorType::element_type, typename MappingType::extents_type, typename MappingType::layout_type, AccessorType>;
 #endif
+
+struct full_extent_t { explicit full_extent_t() = default; };
+inline constexpr auto full_extent = full_extent_t{ };
+
+// submdspan
+template<typename ET, size_t... Exts, typename LP, typename AP, typename... SliceSpecs>
+requires(
+  (LP == layout_left || LP == layout_right || LP == layout_stride) && (
+    (... && (
+      std::is_convertible_v<SliceSpecs, size_t> ||
+      std::is_convertible_v<SliceSpecs, std::tuple<size_t, size_t>> ||
+      std::is_convertible_v<SliceSpecs, full_extent_t>
+    ))
+  )
+)
+constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
+  SliceSpecs... slices) {
+
+  // Let first and last be exposition-only variables of type 
+  // array<size_t,src.rank()>. For r in the range [0, src.rank()), 
+  // define the values of first[r] and last[r] as follows:
+  constexpr size_t rank = src.rank();
+  std::array<size_t, rank> first, last;
+
+  using tuple = std::tuple<size_t, size_t>;
+
+  // if is_convertible_v<Sr,size_t>, then first[r] equals sr, and last[r] 
+  // equals first[r] + 1;
+
+  std::is_convertible_v<SliceSpecs, size_t> ??
+    (first...[:] = slices, last...[:] = first...[:] + 1) :
+
+  // otherwise, if is_convertible_v<Sr,tuple<size_t,size_t>>, then first[r]
+  // equals get<0>(t), and last[r] equals get<1>(t), where t is the result of 
+  // converting sr to tuple<size_t,size_t>;
+  std::is_convertible_v<SliceSpecs, tuple> ??
+    std::tie(first...[:], last...[:]) = (tuple)SliceSpecs :
+
+  // otherwise, if is_convertible_v<Sr,full_extent_t>, then first[r] equals
+  // 0, and last[r] equals src.extent(r).
+    (first...[:] = 0, last...[:] = src.extent(int...)) ...;
+
+
+
+
+
+
+
+}
+
+
 
 }
 }

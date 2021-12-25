@@ -2,9 +2,9 @@
   #error Must compile with Circle build 146 or later
 #endif
 
-#include <iostream>
-#include <memory>
 #include <cassert>
+#include <stdexcept>
+#include <tuple>
 #include <array>
 #include <limits>
 #include <type_traits>
@@ -111,9 +111,8 @@ struct extents {
   template<size_t... Extents2>
   friend constexpr bool operator==(const extents& lhs, 
     const extents<Extents2...>& rhs) noexcept {
-    return sizeof... Extents2 == rank() ?? 
-      (... && (lhs.get<int...(rank())>() == rhs.template get<int...>())) :
-      false;
+    return sizeof... Extents2 == rank() &&& 
+      (... && (lhs.get<int...(rank())>() == rhs.template get<int...>()));
   }
 
   template<int I>
@@ -297,8 +296,7 @@ struct layout_left {
     constexpr mapping(const mapping<OtherExtents>& other) noexcept :
       _extents(other.extents()) { }
 
-
-    // Convernt from layout_right.
+    // Convert from layout_right.
     template<typename OtherMapping>
     requires(
       std::is_constructible_v<Extents, typename OtherMapping::extents_type> &&
@@ -740,21 +738,21 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
   // If LayoutPolicy is layout_left and sub.rank() > 0 is true, then:
   // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
   //   [0, sub.rank() - 1) and is_convertible_v<Sk,size_t> is false for k equal
-  //   sub.rank()-1, then decltype(sub)::layout_type is layout_left
-  constexpr size_t is_layout_left = layout_left == LP && (rank2 ??
-    (... && std::is_convertible_v<SliceSpecs...[0:rank2 - 1], full_extent_t>) &&
-    !std::is_convertible_v<SliceSpecs...[rank2 - 1], size_t> :
-    true);
+  //   sub.rank()-1, then decltype(sub)::layout_type is layout_left.
+  constexpr bool is_layout_left = layout_left == LP &&& (!rank2 |||
+    (... && std::is_convertible_v<SliceSpecs...[0:rank2 - 1], full_extent_t>) &&&
+    !std::is_convertible_v<SliceSpecs...[rank2 - 1], size_t>
+  );
 
   // If LayoutPolicy is layout_right and sub.rank() > 0 is true, then:
   // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
   //   [src.rank()-sub.rank()+1,src.rank()) and is_convertible_v<Sk,size_t>
   //   is false for k equal src.rank()-sub.rank(), 
-  //   then decltype(sub)::layout_type is layout_right
-  constexpr size_t is_layout_right = layout_right == LP && (rank2 ??
+  //   then decltype(sub)::layout_type is layout_right.
+  constexpr size_t is_layout_right = layout_right == LP && (!rank2 |||
     (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&
-    !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t> :
-    true);
+    !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t>
+  );
 
   if constexpr(is_layout_left || is_layout_right) {
     // Use the source's layout policy.

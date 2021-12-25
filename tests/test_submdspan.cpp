@@ -186,18 +186,13 @@ struct TestSubMDSpan<
 
   using mds_sub_deduced_t = decltype(stdex::submdspan(mds_org_t(), SubArgs()...));
   using sub_args_t = std::tuple<SubArgs...>;
-
 };
 
 
 TYPED_TEST_SUITE(TestSubMDSpan, submdspan_test_types);
 
 TYPED_TEST(TestSubMDSpan, submdspan_return_type) {
-  @meta std::cout<< typename TestFixture::mds_sub_t.string<< "\n";
-  @meta std::cout<< typename TestFixture::mds_sub_deduced_t.string<< "\n";
-
   static_assert(std::is_same<typename TestFixture::mds_sub_t,
                              typename TestFixture::mds_sub_deduced_t>::value,
                 "SubMDSpan: wrong return type");
-
 }

@@ -140,7 +140,6 @@ struct layout_right {
   template <class Extents>
   class mapping {
   private:
-
     static_assert(extents == Extents.template, 
       "layout_right::mapping must be instantiated with extents");
 
@@ -149,8 +148,6 @@ struct layout_right {
 
     template<typename... Indices>
     constexpr size_t compute_offset(Indices... indices) const noexcept {
-      static_assert(sizeof...(Indices) == Extents::rank());
-
       // The right-most extent is the most quickly varying.
       size_t x = 0;
       @meta for(int i : sizeof...(Indices)) {
@@ -270,8 +267,6 @@ struct layout_left {
 
     template<typename... Indices>
     constexpr size_t compute_offset(Indices... indices) const noexcept {
-      static_assert(sizeof...(Indices) == Extents::rank());
-
       // The left-most extent is most quickly varying.
       size_t x = 0;
       @meta for(int i = sizeof... indices - 1; i >= 0; --i) {
@@ -283,9 +278,6 @@ struct layout_left {
     }
 
   public:
-
-    //--------------------------------------------------------------------------------
-
     constexpr mapping() noexcept = default;
     constexpr mapping(mapping const&) noexcept = default;
     constexpr mapping(mapping&&) noexcept = default;
@@ -624,7 +616,7 @@ public:
   template<SizeType IndexType, size_t N>
   requires(N == extents_type::rank())
   constexpr reference operator[](const array<IndexType, N>& indices) const noexcept {
-    return _accessor.access(_pointer, _mapping(indices));
+    return _accessor.access(_pointer, _mapping(indices...));
   }
 
   template<SizeType... IndexTypes>
@@ -712,7 +704,6 @@ requires(
     ))
   )
 )
-
 constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
   SliceSpecs... slices) {
  
@@ -765,7 +756,6 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
     !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t> :
     true);
 
-
   if constexpr(is_layout_left || is_layout_right) {
     // Use the source's layout policy.
     return mdspan<ET, Extents, LP, AP>(
@@ -787,8 +777,6 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
     );
   }
 }
-
-
 
 }
 }
@@ -817,4 +805,4 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
 #define _MDSPAN_USE_INTEGER_SEQUENCE 1
 #define _MDSPAN_USE_RETURN_TYPE_DEDUCTION 1
 // #define _MDSPAN_USE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
-// #define _MDSPAN_USE_ALIAS_TEMPLATE_ARGUMENT_DEDUCTION 1
+//  #define _MDSPAN_USE_ALIAS_TEMPLATE_ARGUMENT_DEDUCTION 1

@@ -275,7 +275,7 @@ struct layout_left {
       // The left-most extent is most quickly varying.
       size_t x = 0;
       @meta for(int i = sizeof... indices - 1; i >= 0; --i) {
-        @meta if(i != sizeof... indices - 1)
+        if constexpr(i != sizeof... indices - 1)
           x *= _extents.template get<i>();
         x += indices...[i];
       }
@@ -734,31 +734,37 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
 
   using Extents = extents<
     if std::is_convertible_v<SliceSpecs, tuple> => dynamic_extent else
-    if !std::is_convertible_v<SliceSpecs, size_t> => Exts ...
+    if std::is_convertible_v<SliceSpecs, full_extent_t> => Exts ...
   >; 
   constexpr size_t rank2 = Extents::rank();
 
   Extents dynamic_extents {
     if std::is_convertible_v<SliceSpecs, tuple> => 
-      std::get<1>((tuple)slices) - std::get<0>((tuple)slices) ...
+      std::get<1>((tuple)slices) - std::get<0>((tuple)slices) 
+    else if std::is_convertible_v<SliceSpecs, full_extent_t> && 
+      dynamic_extent == Exts =>
+      src.extent(int...) ...
   };
 
   // If LayoutPolicy is layout_left and sub.rank() > 0 is true, then:
   // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
   //   [0, sub.rank() - 1) and is_convertible_v<Sk,size_t> is false for k equal
   //   sub.rank()-1, then decltype(sub)::layout_type is layout_left
-  constexpr size_t is_layout_left = layout_left == LP && 
+  constexpr size_t is_layout_left = layout_left == LP && (rank2 ??
     (... && std::is_convertible_v<SliceSpecs...[0:rank2 - 1], full_extent_t>) &&
-    !std::is_convertible_v<SliceSpecs...[rank2 - 1], size_t>;
+    !std::is_convertible_v<SliceSpecs...[rank2 - 1], size_t> :
+    true);
 
   // If LayoutPolicy is layout_right and sub.rank() > 0 is true, then:
   // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
   //   [src.rank()-sub.rank()+1,src.rank()) and is_convertible_v<Sk,size_t>
   //   is false for k equal src.rank()-sub.rank(), 
   //   then decltype(sub)::layout_type is layout_right
-  constexpr size_t is_layout_right = layout_right == LP &&
+  constexpr size_t is_layout_right = layout_right == LP && (rank2 ??
     (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&
-    (!rank2 || !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t>);
+    !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t> :
+    true);
+
 
   if constexpr(is_layout_left || is_layout_right) {
     // Use the source's layout policy.

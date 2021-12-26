@@ -240,18 +240,8 @@ struct layout_right {
       return lhs.extents() == rhs.extents();
     }
 
-    // Not really public, but currently needed to implement fully constexpr useable submdspan:
-//   template<size_t N, size_t ... E, size_t ... Idx>
-//   constexpr size_type __get_stride(std::experimental::extents<E...>,integer_sequence<size_t, Idx...>) const {
-//     return _MDSPAN_FOLD_TIMES_RIGHT((Idx>N? __extents.template __extent<Idx>():1),1);
-//   }
-//   template<size_t N>
-//   constexpr size_type __stride() const noexcept {
-//     return __get_stride<N>(__extents, make_index_sequence<extents_type::rank()>());
-//   }
-
   private:
-   [[no_unique_address]] Extents _extents;
+    [[no_unique_address]] Extents _extents;
   };
 };
 
@@ -486,14 +476,12 @@ struct layout_stride {
     }
 
     constexpr size_t required_span_size() const noexcept {
-      size_t span_size = 1;
-      /*
-      for(unsigned r = 0; r < Extents::rank(); r++) {
-        // Return early if any of the extents are zero
-        if(extents().extent(r)==0) return 0;
-        span_size = std::max(span_size, extents().extent(r) * __strides_storage().extent(r));
-      }*/
-      return span_size;
+      // Return 0 if any extent is zero.
+      if((... || !_extents.template get<int...(Extents::rank())>()))
+        return 0;
+
+      // Return the largest stride * extent product.
+      return std::max(1zu, _extents.template get<int...>() * strides...[:] ...);
     }
 
     template<class OtherExtents>
@@ -663,21 +651,17 @@ private:
   friend class mdspan;
 };
 
-#if defined(_MDSPAN_USE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION)
-MDSPAN_TEMPLATE_REQUIRES(
-  class ElementType, class... SizeTypes,
-  /* requires */ _MDSPAN_FOLD_AND(_MDSPAN_TRAIT(is_integral, SizeTypes) /* && ... */)
-)
-mdspan(ElementType*, SizeTypes...)
-  -> mdspan<ElementType, ::std::experimental::dextents<sizeof...(SizeTypes)>>;
+template<typename ElementType, SizeType... IndexTypes>
+mdspan(ElementType*, IndexTypes...)
+  -> mdspan<ElementType, extents<make_dynamic_extent<IndexTypes>()...>>;
 
-template <class ElementType, class SizeType, size_t N>
-mdspan(ElementType*, const ::std::array<SizeType, N>&)
-  -> mdspan<ElementType, ::std::experimental::dextents<N>>;
+template <class ElementType, typename IndexType, size_t N>
+mdspan(ElementType*, const std::array<IndexType, N>&)
+  -> mdspan<ElementType, dextents<N>>;
 
 template <class ElementType, size_t... ExtentsPack>
 mdspan(ElementType*, const extents<ExtentsPack...>&)
-  -> mdspan<ElementType, ::std::experimental::extents<ExtentsPack...>>;
+  -> mdspan<ElementType, extents<ExtentsPack...>>;
 
 template <class ElementType, class MappingType>
 mdspan(ElementType*, const MappingType&)
@@ -686,7 +670,7 @@ mdspan(ElementType*, const MappingType&)
 template <class MappingType, class AccessorType>
 mdspan(const typename AccessorType::pointer, const MappingType&, const AccessorType&)
   -> mdspan<typename AccessorType::element_type, typename MappingType::extents_type, typename MappingType::layout_type, AccessorType>;
-#endif
+
 
 struct full_extent_t { explicit full_extent_t() = default; };
 inline constexpr auto full_extent = full_extent_t{ };
@@ -802,5 +786,6 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
 #define _MDSPAN_USE_VARIABLE_TEMPLATES 1
 #define _MDSPAN_USE_INTEGER_SEQUENCE 1
 #define _MDSPAN_USE_RETURN_TYPE_DEDUCTION 1
-// #define _MDSPAN_USE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
+
+#define _MDSPAN_USE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
 //  #define _MDSPAN_USE_ALIAS_TEMPLATE_ARGUMENT_DEDUCTION 1

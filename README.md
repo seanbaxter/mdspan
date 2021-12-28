@@ -1,13 +1,16 @@
 # mdspan-circle
 
+View the [stable branch's README](https://github.com/kokkos/mdspan#readme).
+
 View the [reference implementation](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp).
+
 View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circle/circle/experimental/mdspan).
 
 [mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [model implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
 
 The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not communicated to Evolution Working Group, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan engages in the most astonishingly complex template metaprogramming I have ever seen.
 
-I decided to rewrite mdspan in what I consider idiomatic Circle. When I couldn't cleanly translate part of the library, I added additional language features to the compiler to make the translation easy. The language grew to accommodate the library. The translated library compiles the [_unmodified_ mdspan tests](https://github.com/seanbaxter/mdspan/tree/circle/tests)--just point the compiler at the _circle_ folder instead of _include_.
+I decided to rewrite mdspan in what I consider idiomatic Circle. When I couldn't cleanly translate part of the library, I added additional language features to the compiler to make the translation easy. The language grew to accommodate the library. The translated library compiles the [_unmodified_ mdspan tests](https://github.com/seanbaxter/mdspan/tree/circle/tests)--just point the compiler at the [circle](circle) folder instead of [include](include).
 
 The result is an mdspan implementation that is concise. There is no evidence of violence in the code. It is frustration free. This document examines Circle solutions for the most infuriating aspects of the Stardard C++ mdspan implementation.
 
@@ -458,5 +461,17 @@ The user provides the N-dimensional pack of _SliceSpecs_, where each member may 
 * `tuple<size_t, size_t>` - Build a view into a (begin, end) interval on this dimension. This carries over to the returned span as an addressible dimension, and it may incur a `layout_stride` on the returned span.
 * `full_extent_t` - Copy over the extent from the source to the returned span. Compared to specifying a full extent with the `tuple` case, this avoids introducing a costly `layout_stride`.
 
-The [mdspan proposal P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) defines behavior based on analyzing the occurrence of these three _SliceSpecs_ types, against the _LayoutPolicy_ of the source span. That is the meat of `submdspan`, and it's delegated to `__assign_op_slice_handler` by the reference implementation. The logic of the slice handler runs for nearly [300 lines](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L4492).
+The [mdspan proposal P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) defines behavior based on analyzing the occurrence of these three _SliceSpecs_ types, against the _LayoutPolicy_ of the source span. That is the meat of `submdspan`, and it's delegated to `__assign_op_slice_handler` by the reference implementation. The logic of the slice handler runs for nearly [300 lines](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L4492). The relation of the text in the proposal to the C++ code is totally obscured by workarounds needed to address the language's lack of metaprograming expressiveness.
+
+The Circle implementation closely follows the proposal, and is implemented in four main operations:
+1. Compute the pointer offset due to the `tuple` and `full_extent_t` _SliceSpecs_ types. This uses the Circle [constexpr conditional](https://github.com/seanbaxter/circle/blob/master/conditional/README.md#constexpr-conditional--) operator `??`.
+2. Extract the dynamic extents from the `slices` function argument. This involves an argument list/initializer list filtering operation, and uses CIA's [_argument-if-else_](https://github.com/seanbaxter/circle/tree/master/imperative#argument-if).
+3. Analyze the types of the _SliceSpecs_ and determine the _LayoutPolicy_ of the returned span. This uses [pack slices and subscripts](https://github.com/seanbaxter/circle/blob/master/universal/README.md#static-subscripts-and-slices), and a new short-circuiting constexpr logical operator `&&&`.
+4. Initialize the returned object mdspan type. This uses _argument-if_ to filter strides when constructing a `layout_stride` policy.
+
+### `submdspan` pointer adjustment.
+
+
+
+
 

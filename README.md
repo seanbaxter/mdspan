@@ -518,7 +518,7 @@ The constexpr conditional operator `??` lets us put all three cases in one pack 
   };
 ```
 
-`submdspan` involves a dimensionality reduction, depending on the types of the slice arguments. We specialize the `extents` class template on this compacted set of source extents. The _argument-if_ feature is critical for this. Inside the _template-argument-list_, _if_ the slice type converts to `tuple`, _then_ push `dynamic_extent`. Otherwise, _if_ the slice type converts to `full_extent_t, _then_ push the corresponding extent of the source. Otherwise, push nothing, and continue to the next element.
+`submdspan` involves a dimensionality reduction, depending on the types of the slice arguments. We specialize the `extents` class template on this compacted set of source extents. The _argument-if_ feature is critical for this. Inside the _template-argument-list_, _if_ the slice type converts to `tuple`, _then_ push `dynamic_extent`. _Else_, _if_ the slice type converts to `full_extent_t, _then_ push the corresponding extent of the source. Otherwise, push nothing. Continue to the next element.
 
 This is a form of compaction that normally calls for recursion into partial templates in Standard C++.
 
@@ -555,6 +555,8 @@ Either of these is fine, but the constructor called by the former version will c
 
 ![layout](submdspan.png)
 
+This is the most complex requirement in the whole mdspan proposal. Since _LayoutPolicy_ is part of the `mdspan` type, the requirement must be evaluated _at compile time_. 
+
 ```cpp
   // If LayoutPolicy is layout_left and sub.rank() > 0 is true, then:
   // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
@@ -570,11 +572,19 @@ Either of these is fine, but the constructor called by the former version will c
   //   [src.rank()-sub.rank()+1,src.rank()) and is_convertible_v<Sk,size_t>
   //   is false for k equal src.rank()-sub.rank(), 
   //   then decltype(sub)::layout_type is layout_right.
-  constexpr size_t is_layout_right = layout_right == LP && (!rank2 |||
-    (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&
+  constexpr size_t is_layout_right = layout_right == LP &&& (!rank2 |||
+    (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&&
     !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t>
   );
 ```
+
+Circle allows us to compute the `layout_left` conditions in one statement and the `layout_right` conditions in one statement. If both declarations are false, then the `layout_stride` policy is used.
+
+Note the use of `&&&` and `|||` operators. These are _short-circuit constexpr logical_ operators, added to Circle to support this library. They express the semantics of [`std::conjunction_v`](https://en.cppreference.com/w/cpp/types/conjunction) and [`std::disjunction_v`](https://en.cppreference.com/w/cpp/types/disjunction), but as language builtins to encourage you to actually use them!
+
+If and only if `layout_right == LP` is true will the rhs of `&&&` be substituted and evaluated. The rhs first evaluates `!rank2`, and if and only if that is _false_ will the rhs of `|||` be substituted and evaluated. This disjunction short-circuit is critical, because the program may be ill-formed without it. Consider the case of an empty source with no extents, so `SliceSpecs` is an empty pack. `rank` and `rank2` are both 0. The pack subscript expression `SliceSpecs...[rank - rank2]` attempts to access the 0'th member of the pack, but that's out of bounds, so the build breaks. 
+
+Short-circuit constexpr conjunction and disjunction operators reduce translation times by eliminating the substitution of irrelevent operands, but more importantly, allows the programmer to guard against unwanted behavior in argument lists, the same way they would guard runtime code with the ordinary logical operators.
 
 ### Building the result object.
 

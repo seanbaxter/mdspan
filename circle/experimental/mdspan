@@ -699,8 +699,8 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
   //   [src.rank()-sub.rank()+1,src.rank()) and is_convertible_v<Sk,size_t>
   //   is false for k equal src.rank()-sub.rank(), 
   //   then decltype(sub)::layout_type is layout_right.
-  constexpr size_t is_layout_right = layout_right == LP && (!rank2 |||
-    (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&
+  constexpr size_t is_layout_right = layout_right == LP &&& (!rank2 |||
+    (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&&
     !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t>
   );
 

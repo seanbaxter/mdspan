@@ -6,7 +6,7 @@ View the [reference implementation](https://github.com/kokkos/mdspan/blob/a32d60
 
 View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circle/circle/experimental/mdspan).
 
-[mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [model implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
+[mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [reference implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
 
 The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not communicated to Evolution Working Group, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan engages in the most astonishingly complex template metaprogramming I have ever seen.
 
@@ -66,7 +66,7 @@ There are three main challenges here, and Standard C++ measures horribly against
 
 To really kill this problem, I implemented data member pack declarations in Circle. 
 
-[[**pack.cxx**]](pack.cxx)
+[**pack.cxx**](pack.cxx)
 ```cpp
 #include <iostream>
 
@@ -148,7 +148,7 @@ Index into a member pack with the [pack subscript](https://github.com/seanbaxter
 
 ### Member packs and `[[no_unique_address]]`
 
-To implement partial static storage for our `extents` class, we need to declare a pack of extent storage objects with 
+To implement partial static storage for our `extents` class, we need to declare a pack of extent storage objects with [[no_unique_address]], a C++ 20 layout attribute.
 
 [**extent.cxx**](extent.cxx)
 ```cpp
@@ -281,7 +281,7 @@ struct extents {
 Consider the mem-initializer-list expression:
 
 ```cpp
-dynamic_extent == Extents ??? exts...[find_dynamic_index<int...>] : Extents
+dynamic_extent == Extents ?? exts...[find_dynamic_index<int...>] : Extents
 ```
 
 When expanded for each i between 0 and sizeof... Extents, we either want to yield `Extents...[i]` (when i corresponds to a static extent), or the next available element of the function parameter pack `exts`. We'll approach this as an assignment operation (for static extents) or a gather operation (for dynamic extents).

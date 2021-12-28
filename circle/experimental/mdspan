@@ -30,7 +30,6 @@ constexpr size_t make_dynamic_extent() { return dynamic_extent; }
 // The Index template parameter is required so that each data member is 
 // of a different type, allowing the [[no_unique_address]] attribute
 // to map them all to the same struct offset.
-
 template<typename Type>
 concept SizeType = std::is_convertible_v<Type, size_t>;
 
@@ -97,7 +96,7 @@ struct extents {
     sizeof...(IndexTypes) == rank_dynamic()
   )
   explicit constexpr extents(IndexTypes... exts) noexcept : m(
-    dynamic_extent == Extents ?? 
+    dynamic_extent == Extents ??
       exts...[find_dynamic_index<int...>] : 
       Extents
   )... { }
@@ -149,7 +148,7 @@ struct layout_right {
     constexpr size_t compute_offset(Indices... indices) const noexcept {
       // The right-most extent is the most quickly varying.
       size_t x = 0;
-      @meta for(int i : sizeof...(Indices)) {
+      @meta for(int i : sizeof... indices) {
         @meta if(i != 0)
           x *= _extents.template get<i>();
         x += indices...[i];
@@ -626,7 +625,7 @@ public:
   constexpr extents_type extents() const noexcept { return _mapping.extents(); };
   constexpr size_type extent(size_t r) const noexcept { return _mapping.extents().extent(r); };
   constexpr size_type size() const noexcept {
-    return (1 * ... * extents().template extent<int...(extents_type::rank())>);
+    return (1 * ... * extents().template get<int...(extents_type::rank())>);
   };
 
   constexpr pointer data() const noexcept { return _pointer; };

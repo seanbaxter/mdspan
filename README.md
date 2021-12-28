@@ -8,7 +8,7 @@ View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circl
 
 [mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [reference implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
 
-The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not communicated to Evolution Working Group, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan engages in the most astonishingly complex template metaprogramming I have ever seen.
+The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not communicated to Evolution Working Group, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan engages in the most astonishingly complex template metaprogramming you've ever seen.
 
 I decided to rewrite mdspan in what I consider idiomatic Circle. When I couldn't cleanly translate part of the library, I added additional language features to the compiler to make the translation easy. The language grew to accommodate the library. The translated library compiles the [_unmodified_ mdspan tests](https://github.com/seanbaxter/mdspan/tree/circle/tests)--just point the compiler at the [circle](circle) folder instead of [include](include).
 
@@ -386,7 +386,7 @@ mdspan provides three predefined _LayoutPolicies_ and accommodates user-defined 
 
 The real problem here is legibility: why does the second overload exist, how is it different from the generic first case? This kind of accumulation requires growing the offset multiplying the extent at each step, except for the very first step (where the first argument of `__rank_count` is 0). C++20 lacks mechanisms for compile-time loops. 
 
-[**mdspan.cxx**](circle/experimental/mdspan)
+[**mdspan**](circle/experimental/mdspan)
 ```cpp
     template<typename... Indices>
     constexpr size_t compute_offset(Indices... indices) const noexcept {
@@ -399,7 +399,6 @@ The real problem here is legibility: why does the second overload exist, how is 
       }
       return x;
     }
-  };
 ```
 
 Circle supports compile-time control flow. Just put the `@meta` token in front of an _if_-, _while_-, _for_- or _do_-statement. The compiler frontend executes the loop during instantiation, and the step index is available as a compile-time value.
@@ -465,13 +464,141 @@ The [mdspan proposal P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2
 
 The Circle implementation closely follows the proposal, and is implemented in four main operations:
 1. Compute the pointer offset due to the `tuple` and `full_extent_t` _SliceSpecs_ types. This uses the Circle [constexpr conditional](https://github.com/seanbaxter/circle/blob/master/conditional/README.md#constexpr-conditional--) operator `??`.
-2. Extract the dynamic extents from the `slices` function argument. This involves an argument list/initializer list filtering operation, and uses CIA's [_argument-if-else_](https://github.com/seanbaxter/circle/tree/master/imperative#argument-if).
+2. Compact the extents from the `slices` function arguments. This involves an argument list/initializer list filtering operation, and uses CIA's [_argument-if-else_](https://github.com/seanbaxter/circle/tree/master/imperative#argument-if).
 3. Analyze the types of the _SliceSpecs_ and determine the _LayoutPolicy_ of the returned span. This uses [pack slices and subscripts](https://github.com/seanbaxter/circle/blob/master/universal/README.md#static-subscripts-and-slices), and a new short-circuiting constexpr logical operator `&&&`.
 4. Initialize the returned object mdspan type. This uses _argument-if_ to filter strides when constructing a `layout_stride` policy.
 
 ### `submdspan` pointer adjustment.
 
+```cpp
+constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
+  SliceSpecs... slices) {
+ 
+  using tuple = std::tuple<size_t, size_t>;
+  constexpr size_t rank = src.rank();
 
+  // * For size_t slice, skip the extent and stride, but add an offset
+  //   corresponding to the value.
+  // * For a std::full_extent, offset 0 and old extent.
+  // * For a std::tuple, add an offset and add a new dynamic extent 
+  //   (strides still preserved).
+  size_t offset = src.mapping()(
+    std::is_convertible_v<SliceSpecs, size_t> ??
+      (size_t)slices :
+    std::is_convertible_v<SliceSpecs, tuple> ??
+      std::get<0>((tuple)slices) :
+      0 ...
+  );
 
+  // ...
+}
+```
 
+To create a submdspan, we need to adjust the pointer of the source span by calling the mapping's `operator()` with the N-dimensional vector of offsets. 
+* If the `SliceSpecs` type is convertible to `size_t`, then we adjust that dimension by that `size_t` value.
+* If the `SliceSpecs` type is convertible to `std::tuple`, convert it and take the 0 component, which is the begin offset.
+* Otherwise, the type must be `full_extent_t`, which implies a 0 adjustment for that dimension.
+
+The constexpr conditional operator `??` lets us put all three cases in one pack expression. The C++ conditional operator `?` would not work here, because the convert to `size_t` or `tuple` would cause a substitution failure, leaving the program ill-formed. The constexpr conditional guards against invalid conversions.
+
+### Reducing extents.
+
+```cpp
+  using Extents = extents<
+    if std::is_convertible_v<SliceSpecs, tuple> => dynamic_extent else
+    if std::is_convertible_v<SliceSpecs, full_extent_t> => Exts ...
+  >; 
+  constexpr size_t rank2 = Extents::rank();
+
+  Extents dynamic_extents {
+    if std::is_convertible_v<SliceSpecs, tuple> => 
+      std::get<1>((tuple)slices) - std::get<0>((tuple)slices) 
+    else if std::is_convertible_v<SliceSpecs, full_extent_t> =>
+      src.extent(int...) ...
+  };
+```
+
+`submdspan` involves a dimensionality reduction, depending on the types of the slice arguments. We specialize the `extents` class template on this compacted set of source extents. The _argument-if_ feature is critical for this. Inside the _template-argument-list_, _if_ the slice type converts to `tuple`, _then_ push `dynamic_extent`. Otherwise, _if_ the slice type converts to `full_extent_t, _then_ push the corresponding extent of the source. Otherwise, push nothing, and continue to the next element.
+
+This is a form of compaction that normally calls for recursion into partial templates in Standard C++.
+
+After forming the `extents` specialization, we have to construct it with an appropriate subset of the source's extents. There are two choices: 
+1. Pass the result object's `extents` constructor one argument per extent, or
+2. Pass the result object's `extents` constructor one argument per _dynamic_ extent.
+
+```cpp
+  Extents sub_extents {
+    if std::is_convertible_v<SliceSpecs, tuple> => 
+      std::get<1>((tuple)slices) - std::get<0>((tuple)slices) 
+    else if std::is_convertible_v<SliceSpecs, full_extent_t> =>
+      src.extent(int...) ...
+  };
+```
+
+This _argument-if_ usage wrangles all the extents for the result object: that is, if the slice type is a `tuple` or a `full_extent_t`, then the extent is emitted as a constructor argument.
+
+```cpp
+  Extents sub_extents {
+    if std::is_convertible_v<SliceSpecs, tuple> => 
+      std::get<1>((tuple)slices) - std::get<0>((tuple)slices) 
+    else if std::is_convertible_v<SliceSpecs, full_extent_t> && 
+      dynamic_extent == Exts =>
+      src.extent(int...) ...
+  };
+```
+
+It's not any harder to call the dynamic extents constructor. All `tuple` slice types imply dynamic extents, as do `full_extent_t` slice types _with a corresponding `dynamic_extent` `Exts` template parameter.
+
+Either of these is fine, but the constructor called by the former version will compile a bit quicker.
+
+### _LayoutPolicy_
+
+![layout](submdspan.png)
+
+```cpp
+  // If LayoutPolicy is layout_left and sub.rank() > 0 is true, then:
+  // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
+  //   [0, sub.rank() - 1) and is_convertible_v<Sk,size_t> is false for k equal
+  //   sub.rank()-1, then decltype(sub)::layout_type is layout_left.
+  constexpr bool is_layout_left = layout_left == LP &&& (!rank2 |||
+    (... && std::is_convertible_v<SliceSpecs...[0:rank2 - 1], full_extent_t>) &&&
+    !std::is_convertible_v<SliceSpecs...[rank2 - 1], size_t>
+  );
+
+  // If LayoutPolicy is layout_right and sub.rank() > 0 is true, then:
+  // if is_convertible_v<Sk,full_extent_t> is true for all k in the range
+  //   [src.rank()-sub.rank()+1,src.rank()) and is_convertible_v<Sk,size_t>
+  //   is false for k equal src.rank()-sub.rank(), 
+  //   then decltype(sub)::layout_type is layout_right.
+  constexpr size_t is_layout_right = layout_right == LP && (!rank2 |||
+    (... && std::is_convertible_v<SliceSpecs...[rank - rank2 + 1:rank], full_extent_t>) &&
+    !std::is_convertible_v<SliceSpecs...[rank - rank2], size_t>
+  );
+```
+
+### Building the result object.
+
+```cpp
+  if constexpr(is_layout_left || is_layout_right) {
+    // Use the source's layout policy.
+    return mdspan<ET, Extents, LP, AP>(
+      src.data() + offset,
+      typename LP::template mapping<Extents>(dynamic_extents),
+      src.accessor()
+    );
+
+  } else {
+    // Use layout_stride policy.   
+    std::array<size_t, Extents::rank()> strides {
+      if !std::is_convertible_v<SliceSpecs, size_t> => src.stride(int...) ...
+    };
+
+    return mdspan<ET, Extents, layout_stride, AP>(
+      src.data() + offset,
+      layout_stride::mapping<Extents>(dynamic_extents, strides),
+      src.accessor()
+    );
+  }
+}
+```
 

@@ -4,7 +4,7 @@ View the [stable branch's README](https://github.com/kokkos/mdspan#readme).
 
 View the [reference implementation](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp).
 
-View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circle/circle/experimental/mdspan).
+View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circle/circle/experimental/mdspan.hpp).
 
 [mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [reference implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
 
@@ -403,7 +403,7 @@ mdspan provides three predefined _LayoutPolicies_ and accommodates user-defined 
 
 The real problem here is legibility: why does the second overload exist, how is it different from the generic first case? This kind of accumulation requires growing the offset multiplying the extent at each step, except for the very first step (where the first argument of `__rank_count` is 0). C++20 lacks mechanisms for compile-time loops. 
 
-[**mdspan**](circle/experimental/mdspan)
+[**mdspan.hpp**](circle/experimental/mdspan.hpp)
 ```cpp
     template<typename... Indices>
     constexpr size_t compute_offset(Indices... indices) const noexcept {

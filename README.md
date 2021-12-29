@@ -422,7 +422,7 @@ Circle supports compile-time control flow. Just put the `@meta` token in front o
 
 The logic of `compute_offset` is transparent in the Circle version of mdspan. You loop over each function parameter, grow the accumulator by multiplying by the i'th extent if we aren't on the first member (although the accumulator is seeded to 0, so this would be a benign operation were it executde), and add in the current index. `i` is a compile-time value, so it can be used as a template argument or a pack subscript.
 
-## `submdspan`
+## `submdspan`.
 
 The reference implementation for the function `submdspan` terrifies. The operation aims to construct an M-dimensional view into an N-dimensionsal span, where M <= N. The difficulty is doing this in a space-efficient manner, so that static extents are preserved, and stride data is only introduced when required. (Such as when a requested extent is smaller than the source extent, and that extent isn't the first/last extent in a col-major/row-major _LayoutPolicy_.) 
 
@@ -568,7 +568,7 @@ It's not any harder to call the dynamic extents constructor. All `tuple` slice t
 
 Either of these is fine, but the constructor called by the former version will compile a bit quicker.
 
-### Choosing a _LayoutPolicy_
+### Choosing a _LayoutPolicy_.
 
 ![layout](submdspan.png)
 

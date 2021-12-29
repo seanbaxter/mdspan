@@ -8,7 +8,9 @@ View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circl
 
 [mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [reference implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
 
-The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not communicated to Evolution Working Group, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan engages in the most astonishingly complex template metaprogramming you've ever seen.
+The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not addressed by the language working groups, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan has to engages in the most astonishingly complex template metaprogramming you've ever seen.
+
+The standard libraries are written by the most experienced C++ programmers, and should practice solid, clear, idiomatic C++. But that's rarely the case, because the ambitions of library authors far outstrip the capabilities of the language to support them.
 
 I decided to rewrite mdspan in what I consider idiomatic Circle. When I couldn't cleanly translate part of the library, I added additional language features to the compiler to make the translation easy. The language grew to accommodate the library. The translated library compiles the [_unmodified_ mdspan tests](https://github.com/seanbaxter/mdspan/tree/circle/tests)--just point the compiler at the [circle](circle) folder instead of [include](include).
 
@@ -551,7 +553,7 @@ It's not any harder to call the dynamic extents constructor. All `tuple` slice t
 
 Either of these is fine, but the constructor called by the former version will compile a bit quicker.
 
-### _LayoutPolicy_
+### Choosing a _LayoutPolicy_
 
 ![layout](submdspan.png)
 
@@ -584,7 +586,7 @@ Note the use of `&&&` and `|||` operators. These are _short-circuit constexpr lo
 
 If and only if `layout_right == LP` is true will the rhs of `&&&` be substituted and evaluated. The rhs first evaluates `!rank2`, and if and only if that is _false_ will the rhs of `|||` be substituted and evaluated. This disjunction short-circuit is critical, because the program may be ill-formed without it. Consider the case of an empty source with no extents, so `SliceSpecs` is an empty pack. `rank` and `rank2` are both 0. The pack subscript expression `SliceSpecs...[rank - rank2]` attempts to access the 0'th member of the pack, but that's out of bounds, so the build breaks. 
 
-Short-circuit constexpr conjunction and disjunction operators reduce translation times by eliminating the substitution of irrelevent operands, but more importantly, allows the programmer to guard against unwanted behavior in argument lists, the same way they would guard runtime code with the ordinary logical operators.
+Short-circuit constexpr conjunction and disjunction operators reduce translation times by eliminating the substitution of irrelevent operands, but more importantly, allow the programmer to guard against unwanted behavior in argument lists, the same way they would guard runtime code with the ordinary logical operators.
 
 ### Building the result object.
 
@@ -593,7 +595,7 @@ Short-circuit constexpr conjunction and disjunction operators reduce translation
     // Use the source's layout policy.
     return mdspan<ET, Extents, LP, AP>(
       src.data() + offset,
-      typename LP::template mapping<Extents>(dynamic_extents),
+      typename LP::template mapping<Extents>(sub_extents),
       src.accessor()
     );
 
@@ -605,10 +607,11 @@ Short-circuit constexpr conjunction and disjunction operators reduce translation
 
     return mdspan<ET, Extents, layout_stride, AP>(
       src.data() + offset,
-      layout_stride::mapping<Extents>(dynamic_extents, strides),
+      layout_stride::mapping<Extents>(sub_extents, strides),
       src.accessor()
     );
   }
 }
 ```
 
+The last step of Circle's `submdspan` implementation constructs the result object `mdspan` specialization. If the layout is `layout_left` or `layout_right`, we specialize the span over the source's _LayoutPolicy_ and construct the span without strides, and specialize. Otherwise, the span is specialized over `layout_stride`, and initialized with an `std::array` of strides for each extent. This is yet another example of _argument-if_ filtering template arguments straight into an argument list. If the slice type is _not_ convertible to `size_t`, then the corresponding stride is fetched from the source span. This works even when the source span is specialized on a non-strided layout; the stride is synthesized in those cases.

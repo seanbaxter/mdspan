@@ -6,6 +6,8 @@ View the [reference implementation](https://github.com/kokkos/mdspan/blob/a32d60
 
 View the [Circle implementation](https://github.com/seanbaxter/mdspan/blob/circle/circle/experimental/mdspan.hpp).
 
+[dot_product](https://godbolt.org/z/8K9YaKWhb) example with circle. [simple_tiled_layout](https://godbolt.org/z/bvThejPoh) example with circle.
+
 [mdspan P0009](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p0009r14.html) is a major library slated for inclusion in C++23. A [reference implementation](https://github.com/kokkos/mdspan) has been provided by the Kokkos team, with lots of good tests. A [single-header branch](https://github.com/kokkos/mdspan/blob/single-header/mdspan.hpp) is the best form for examining their work.
 
 The mdspan proposal has been in revision since 2015, and improves on proposals that date much further back even. There are few modern C++ libraries as studied as mdspan. Unfortunately, the C++ ISO committee does not practice co-design. The needs of library implementers are not addressed by the language working groups, resulting in a core language that only supports the demands of its standard library with the most tortured of efforts. Even when targeting C++20, mdspan has to engages in the most astonishingly complex template metaprogramming you've ever seen.
@@ -83,7 +85,7 @@ There are three main challenges here, and Standard C++ measures horribly against
 
 To really kill this problem, I implemented data member pack declarations in Circle. 
 
-[**pack.cxx**](pack.cxx)
+[**pack.cxx**](pack.cxx) [Compiler Explorer](https://godbolt.org/z/GP7a8zvzM)
 ```cpp
 #include <iostream>
 
@@ -167,7 +169,7 @@ Index into a member pack with the [pack subscript](https://github.com/seanbaxter
 
 To implement partial static storage for our `extents` class, we need to declare a pack of extent storage objects with [[no_unique_address]], a C++ 20 layout attribute.
 
-[**extent.cxx**](extent.cxx)
+[**extent.cxx**](extent.cxx) [Compiler Explorer](https://godbolt.org/z/PvTxon6eM)
 ```cpp
 #include <type_traits>
 #include <limits>

@@ -321,7 +321,7 @@ Note the `??` operator in the dispatch. This is the [constexpr conditional](http
 
 ## Specifying dynamic extents.
 
-[**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L3320)
+Reference [**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L3320)
 ```cpp
 namespace detail {
 
@@ -359,7 +359,7 @@ This code loops `i` from 0 to Rank - 1, and inserts `dynamic_extent` into the ar
 
 ## Computing layout offsets.
 
-[**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L3394)
+Reference [**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L3394)
 ```cpp
 struct layout_right {
   template <class Extents>
@@ -403,7 +403,7 @@ mdspan provides three predefined _LayoutPolicies_ and accommodates user-defined 
 
 The real problem here is legibility: why does the second overload exist, how is it different from the generic first case? This kind of accumulation requires growing the offset multiplying the extent at each step, except for the very first step (where the first argument of `__rank_count` is 0). C++20 lacks mechanisms for compile-time loops. 
 
-[**mdspan.hpp**](circle/experimental/mdspan.hpp)
+Circle [**mdspan.hpp**](circle/experimental/mdspan.hpp)
 ```cpp
     template<typename... Indices>
     constexpr size_t compute_offset(Indices... indices) const noexcept {
@@ -428,7 +428,7 @@ The reference implementation for the function `submdspan` terrifies. The operati
 
 C++20 and C++23 are completely ill-suited for expressing this function that is part of C++23. Mechanisms needed for a sane implementation are not even under serious consideration for language evolution.
 
-[**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L4787)
+Reference [**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L4787)
 ```cpp
 template <class ET, size_t... Exts, class LP, class AP, class... SliceSpecs, size_t... Idxs>
 MDSPAN_INLINE_FUNCTION

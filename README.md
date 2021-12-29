@@ -16,7 +16,7 @@ The standard libraries are written by the most experienced C++ programmers, and 
 
 I decided to rewrite mdspan in what I consider idiomatic Circle. When I couldn't cleanly translate part of the library, I added additional language features to the compiler to make the translation easy. The language grew to accommodate the library. The translated library compiles the [_unmodified_ mdspan tests](https://github.com/seanbaxter/mdspan/tree/circle/tests)--just point the compiler at the [circle](circle) folder instead of [include](include).
 
-The result is an mdspan implementation that is concise. There is no evidence of violence in the code. It is frustration free. This document examines Circle solutions for the most infuriating aspects of the Stardard C++ mdspan implementation.
+This document shows some of the improvements in the translated library, made possible by Circle's superior metaprogarmming features. The code is made easy to read, while still adhering to P0009's interface requirements.
 
 ## Contents
 

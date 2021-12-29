@@ -16,6 +16,21 @@ I decided to rewrite mdspan in what I consider idiomatic Circle. When I couldn't
 
 The result is an mdspan implementation that is concise. There is no evidence of violence in the code. It is frustration free. This document examines Circle solutions for the most infuriating aspects of the Stardard C++ mdspan implementation.
 
+## Contents
+
+* [Partial static storage](#partial-static-storage)
+  * [Data member pack declarations](#data-member-pack-declarations)
+  * [Member packs and `[[no_unique_address]]`](https://github.com/seanbaxter/mdspan/tree/circle#member-packs-and-no_unique_address)
+  * [Accessing extents](#accessing-extents)
+* [`extents` construction](#extents-construction)
+* [Specifying dynamic extents](#specifying-dynamic-extents)
+* [Computing layout offsets](#computing-layout-offsets)
+* [`submdspan`](#submdspan)
+  * [`submdspan` pointer adjustment](#submdspan-pointer-adjustment)
+  * [Reducing extents](#reducing-extents)
+  * [Choosing a _LayoutPolicy_](#choosing-a-layoutpolicy)
+  * [Building the result object](#building-the-result-object)
+
 ## Partial static storage.
 
 ```cpp
@@ -148,7 +163,7 @@ Standard C++ supports inheriting from a pack of base classes, but not creating a
 
 Index into a member pack with the [pack subscript](https://github.com/seanbaxter/circle/blob/master/universal/README.md#static-subscripts-and-slices) operator `...[index]`. 
 
-### Member packs and `[[no_unique_address]]`
+### Member packs and `[[no_unique_address]]`.
 
 To implement partial static storage for our `extents` class, we need to declare a pack of extent storage objects with [[no_unique_address]], a C++ 20 layout attribute.
 
@@ -342,7 +357,7 @@ using dextents = extents<for i : Rank => dynamic_extent>;
 
 This code loops `i` from 0 to Rank - 1, and inserts `dynamic_extent` into the argument list at each step.
 
-## Computing layout offsets
+## Computing layout offsets.
 
 [**mdspan.hpp**](https://github.com/kokkos/mdspan/blob/a32d60ac5632e340c6b991f37910fd7598ea07cf/mdspan.hpp#L3394)
 ```cpp

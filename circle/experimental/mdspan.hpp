@@ -448,7 +448,7 @@ struct layout_stride {
         return 0;
 
       // Return the largest stride * extent product.
-      return std::max({ 1zu, _extents.template get<int...>() * _strides...[:] ... });
+      return std::max({ 1zu, _extents.template get<int...>() * _strides.[:] ... });
     }
 
     template<class OtherExtents>
@@ -753,6 +753,5 @@ constexpr auto submdspan(const mdspan<ET, extents<Exts...>, LP, AP>& src,
 #define _MDSPAN_USE_INTEGER_SEQUENCE 1
 #define _MDSPAN_USE_RETURN_TYPE_DEDUCTION 1
 
-// Need to fix some Circle CTAD bugs before enabling these.
 #define _MDSPAN_USE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
 // #define _MDSPAN_USE_ALIAS_TEMPLATE_ARGUMENT_DEDUCTION 1

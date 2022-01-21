@@ -83,8 +83,6 @@ There are three main challenges here, and Standard C++ measures horribly against
 
 ### Data member pack declarations.
 
-To really kill this problem, I implemented data member pack declarations in Circle. 
-
 [**pack.cxx**](pack.cxx) [Compiler Explorer](https://godbolt.org/z/GP7a8zvzM)
 ```cpp
 #include <iostream>

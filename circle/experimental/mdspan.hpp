@@ -53,7 +53,7 @@ struct extents {
 
   static constexpr size_t rank() noexcept { return sizeof... Extents; }
   static constexpr size_t rank_dynamic() noexcept {
-    return (0 + ... + (Extents == dynamic_extent));
+    return Extents.count(dynamic_extent);
   }
   static constexpr size_t static_extent(size_t n) noexcept {
     return n == int... ...? Extents : 0;
@@ -88,7 +88,7 @@ struct extents {
   // Map index I to dynamic index J.
   template<size_t I>
   static constexpr size_t find_dynamic_index = 
-    (0 + ... + (dynamic_extent == Extents...[:I]));
+    Extents...[:I].count(dynamic_extent);
 
   // One index per dynamic extent.
   template<SizeType... IndexTypes> requires(
